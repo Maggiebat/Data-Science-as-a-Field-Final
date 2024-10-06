@@ -1,0 +1,86 @@
+---
+title: "NYC_Data"
+author: "Margaret Battersby"
+date: "2024-09-06"
+output: pdf_document
+---
+
+```{r get_jhu_data}
+options(repos = c(CRAN = "https://cloud.r-project.org/"))
+
+# read in packages
+
+install.packages("readr")
+install.packages("dplyr")
+install.packages("tidyverse")
+
+library(readr)
+library(dplyr)
+library(tidyverse)
+library(lubridate)
+
+# read in data
+
+## Get current Data in the file
+urls <- c("https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv?accessType=DOWNLOAD")
+
+nypd_data <- read_csv(urls[1])
+
+# clean up data
+
+nypd_data_clean <- nypd_data %>%
+  drop_na(OCCUR_DATE,OCCUR_TIME,BORO)
+
+nypd_data_clean <- nypd_data %>%
+  mutate(LOC_OF_OCCUR_DESC = replace_na(LOC_OF_OCCUR_DESC, "UNKNOWN"))
+
+nypd_data_clean <- nypd_data %>%
+    mutate(OCCUR_DATE = mdy(OCCUR_DATE),
+           OCCUR_TIME = hms(OCCUR_TIME))
+
+nypd_data_clean <- nypd_data %>%
+    drop_na(VIC_SEX, PERP_SEX)
+
+nypd_data_clean <- nypd_data_clean %>%
+    mutate(OCCUR_DATE = mdy(OCCUR_DATE),      
+           OCCUR_TIME = hms(OCCUR_TIME))
+
+nypd_data_clean <- nypd_data_clean %>%
+    mutate(YEAR = year(OCCUR_DATE),         
+           MONTH = month(OCCUR_DATE, label = TRUE),
+           HOUR = hour(OCCUR_TIME))
+
+nypd_data_clean <- nypd_data_clean %>%
+    mutate(YEAR = year(OCCUR_DATE),
+           MONTH = month(OCCUR_DATE, label = TRUE),
+           HOUR = hour(OCCUR_TIME))
+
+nypd_data_clean <- nypd_data_clean %>%
+    mutate(BORO = as.factor(BORO),
+           PERP_SEX = as.factor(PERP_SEX),
+           VIC_SEX = as.factor(VIC_SEX))
+
+nypd_boro_hour <- nypd_data_clean %>%
+  group_by(BORO,HOUR) %>%
+  summarise(incidents = n())
+
+# visualizations
+
+ggplot(nypd_data_clean, aes(x = HOUR)) +
+    geom_histogram(binwidth = 1, fill = "darkgreen", color = "white") +
+    labs(title = "Distribution of Shooting Incidents by Time of Day",
+         x = "Hour of Day", y = "Count of Incidents") +
+    theme_minimal()
+
+ggplot(nypd_boro_hour, aes(x = HOUR, y = BORO, fill = incidents)) +
+    geom_tile() +
+    scale_fill_gradient(low = "pink", high = "red") +
+    labs(title = "Heatmap of Shooting Incidents by Boro and Time of Day",
+         x = "Hour of Day", y = "Boro", fill = "Incidents") +
+    theme_minimal()
+
+ggplot(nypd_data_clean, aes(x = VIC_SEX, fill = PERP_SEX)) +
+    geom_bar(position = "dodge") +
+    labs(title = "Victim and Perpetrator Sex Distribution",
+         x = "Victim Sex", y = "Count", fill = "Perpetrator Sex") +
+    theme_minimal()
